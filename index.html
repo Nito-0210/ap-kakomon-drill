@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>応用情報 過去問ドリル</title>
+<meta name="description" content="応用情報技術者試験の過去問（令和5年度春期〜令和7年度秋期）をブラウザで解ける演習ツール。進捗は各自のブラウザに保存されます。">
+<style>
+:root{
+  --ink:#1B2430; --sub:#5C6673; --line:#C9C7C1;
+  --desk:#E7E6E2; --paper:#FFFFFF; --mark:#2F4B7C;
+  --font:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic","YuGothic","Meiryo",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--desk);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.8;-webkit-font-smoothing:antialiased}
+:focus-visible{outline:2px solid var(--mark);outline-offset:2px}
+.page{max-width:760px;margin:0 auto;padding:40px 16px 56px}
+h1{font-size:22px;margin:0 0 6px;letter-spacing:.02em}
+.lead{color:var(--sub);margin:0 0 28px}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:32px}
+@media(max-width:600px){.cards{grid-template-columns:1fr}}
+.card{display:block;background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:18px 20px;color:inherit;text-decoration:none}
+.card:hover{border-color:var(--mark)}
+.card .k{font-size:12px;color:var(--sub);letter-spacing:.06em}
+.card h2{font-size:17px;margin:2px 0 6px;color:var(--mark)}
+.card p{margin:0;font-size:14px;color:var(--sub)}
+.box{background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:18px 20px;margin-bottom:18px}
+.box h2{font-size:15px;margin:0 0 8px}
+.box p,.box ul{margin:0 0 10px;font-size:14px}
+.box p:last-child,.box ul:last-child{margin-bottom:0}
+.box ul{padding-left:1.3em}
+.box li{margin-bottom:4px}
+.ex{display:inline-block;background:var(--desk);border-radius:3px;padding:1px 8px;font-size:13px}
+a{color:var(--mark)}
+footer{font-size:12px;color:var(--sub);margin-top:28px}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>応用情報 過去問ドリル</h1>
+  <p class="lead">応用情報技術者試験の令和5年度春期〜令和7年度秋期の過去問を、ブラウザだけで解ける演習ツールです。登録やログインは不要です。</p>
+
+  <div class="cards">
+    <a class="card" href="ap-kamokuA-drill-full.html">
+      <div class="k">科目A（午前）</div>
+      <h2>過去問ドリル</h2>
+      <p>6回分・480問。分野や回で絞り込んで演習、本番形式（CBT）での通し演習、成績の確認ができます。</p>
+    </a>
+    <a class="card" href="ap-kamokuB-drill-full.html">
+      <div class="k">科目B（午後）</div>
+      <h2>記述演習</h2>
+      <p>6回分・全11分野の66問。全設問に解説付き。解答例を見ながらの自己採点や、本番形式（CBT）での演習ができます。</p>
+    </a>
+  </div>
+
+  <div class="box">
+    <h2>進捗の保存について</h2>
+    <p>解答履歴や苦手のチェックは、いま使っているブラウザの中にだけ保存されます。サーバーには送られず、ほかの人からは見えません。</p>
+    <ul>
+      <li>スマホとパソコンなど、別の端末や別のブラウザとは共有されません。</li>
+      <li>ブラウザの履歴やCookieを消したとき、シークレットウィンドウで開いたとき、iPhoneやMacのSafariで7日ほど開かなかったときは、進捗が消えることがあります。</li>
+      <li>各ページの「保存」タブから進捗をファイルに書き出しておけます。別の端末で続けるときも、そのファイルを読み込んでください。</li>
+    </ul>
+  </div>
+
+  <div class="box">
+    <h2>出典と著作権</h2>
+    <p>問題文・図表・正解、科目Bの解答例・出題趣旨・採点講評は、独立行政法人情報処理推進機構（IPA）が公開している応用情報技術者試験の過去問題を使用しています。各問題の出典は、次の形式で示しています。</p>
+    <p><span class="ex">出典：令和5年度 春期 応用情報技術者試験 午前 問1</span>（科目Bは「午後 問1」）</p>
+    <p>科目Aは、問題文と選択肢を問題冊子（PDF）から文字に起こして表示しています。図や表は問題冊子から切り出した画像です。各問題の「原本の画像を表示」を開くと、元の紙面の画像を確認できます。</p>
+    <p>科目Bは、問題冊子のページを画像にして掲載しています。本番形式（CBT）では、一部の問題を文字に起こして表示します。</p>
+    <p>画像は白黒や灰色の濃淡に変換していますが、問題の内容は改変していません。文字起こしと原本の画像が食い違う場合は、原本の画像が正しい内容です。</p>
+    <p>過去問題の著作権はIPAにあります。使用の条件は <a href="https://www.ipa.go.jp/shiken/faq.html" rel="noopener">IPAの試験に関するよくある質問</a> を、過去問題そのものは <a href="https://www.ipa.go.jp/shiken/mondai-kaiotu/index.html" rel="noopener">IPAの過去問題のページ</a> をご覧ください。</p>
+  </div>
+
+  <div class="box">
+    <h2>解説と分野分けについて</h2>
+    <p>各問題の解説と、科目Aの分野分けは、このツールの作成者が独自に作成したものです。IPAの公式な解説ではありません。誤りに気づいた場合は、IPA公開の正解・解答例を優先してください。</p>
+    <p>このツールはIPAとは関係のない個人の学習用ツールです。</p>
+  </div>
+
+  <footer>外部のサービスやアクセス解析は使っていません。</footer>
+</div>
+</body>
+</html>
