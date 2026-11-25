@@ -316,6 +316,23 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 #cbt .cb-qtb .qt-f img{width:auto}
 #cbt .cb-qtb .qt-pre{font-family:inherit;white-space:pre-wrap;margin:.4em 0}
 .cb-qt .bx{display:inline-block;min-width:3.2em;border:1.5px solid currentColor;text-align:center;line-height:1.3;margin:0 .25em;text-indent:0}
+
+/* 選択ボタン（操作説明の ①選択ボタン）：押すと色が変わる。本番形式の画面と通常の演習で共通 */
+.cb-rad{display:flex;flex-wrap:wrap;gap:6px}
+.cb-rad button{min-width:44px;padding:5px 12px;border:1px solid #9aa3ad;background:#fff;border-radius:3px;font-family:inherit;font-size:15px;cursor:pointer;color:#1f2933}
+.cb-rad button:hover{background:#eef3f8}
+.cb-rad button[aria-pressed=true]{background:#1d4f91;border-color:#1d4f91;color:#fff;font-weight:600}
+/* 通常の演習の解答欄（記号の設問があるとき） */
+.dr-fx .cb-sub{margin:4px 0 10px}
+.dr-fx .cb-sub .sl{font-size:12px;color:var(--sub,#5c6673);margin-bottom:3px}
+.dr-fx select{min-width:160px;padding:4px 6px;border:1px solid var(--line,#ccd);border-radius:3px;font-family:inherit;font-size:14px;background:#fff}
+.dr-fx .multi{display:flex;flex-wrap:wrap;gap:4px 14px}
+.dr-fx .multi label{display:flex;align-items:center;gap:4px;font-size:14px}
+.dr-fx input[type=text]{width:100%;padding:6px 8px;border:1px solid var(--line,#ccd);border-radius:3px;font-family:inherit;font-size:14px}
+.dr-fx textarea{width:100%;min-height:70px;padding:8px;border:1px solid var(--line,#ccd);border-radius:3px;font-family:inherit;font-size:14px;line-height:1.7;resize:vertical}
+.dr-fx .cnt{text-align:right;font-size:11px;color:var(--sub,#5c6673)}
+.dr-fx .cnt.full{color:#c62828}
+.dr-fx .cb-note{font-size:12px;color:var(--sub,#5c6673)}
 </style>
 <!--/CBT-CSS-->
 <!--SUM-CSS-->
@@ -638,7 +655,7 @@ function renderWork(){
         </div>
       </div>
       <div class="card">
-        <h3>解答欄　※本番も入力はキーボードです</h3>
+        <h3>解答欄　※本番と同じく、記号はクリックで選び、字句や文章はキーボードで入力します</h3>
         ${x.items.map((it,i) => `
           <div class="q" data-i="${i}">
             <div class="lab"><strong>${it.label}</strong><span class="sp"></span>
@@ -646,7 +663,7 @@ function renderWork(){
                 ${['o','d','x'].map(g => `<button data-g="${g}" aria-pressed="${r.grade[it.label]===g}">${g==='o'?'○':g==='d'?'△':'✕'}</button>`).join('')}
               </div>
             </div>
-            <textarea data-lab="${esc(it.label)}" placeholder="ここに書く">${esc(r.ans[it.label])}</textarea>
+            ${(typeof CBTB !== 'undefined' && CBTB.drillHTML(x, it, r)) || `<textarea data-lab="${esc(it.label)}" placeholder="ここに書く">${esc(r.ans[it.label])}</textarea>`}
             <button class="reveal" data-rev="${i}">解答例を見る</button>
             <div class="model" data-model="${i}" style="display:${r.shown[it.label] ? 'block' : 'none'}">${esc(it.ans)}</div>
             <div class="expl" data-expl="${i}" style="display:${r.shown[it.label] ? 'block' : 'none'}">${
@@ -673,6 +690,7 @@ function renderWork(){
   P.querySelectorAll('textarea[data-lab]').forEach(t => t.addEventListener('input', e => {
     r.ans[e.target.dataset.lab] = e.target.value; save();
   }));
+  if (typeof CBTB !== 'undefined') CBTB.drillWire(P, x, r, save);     // 記号の設問の選択ボタン・プルダウン（work/cbt/cbt_b.js）
   document.getElementById('scr').addEventListener('input', e => { r.scratch = e.target.value; save(); });
   P.querySelectorAll('.grade button').forEach(b => b.onclick = () => {
     const lab = x.items[+b.closest('.q').dataset.i].label;
@@ -1205,7 +1223,8 @@ const CBTB = (() => {
   function one(head, blank, model, unordered) {
     const v = model.replace(/\s+/g, ' ').trim();
     const f = {key: head + (blank || ''), head, blank, model, unordered};
-    if (/^[ア-ン]$/.test(v)) { f.type = 'select'; f.opts = KANA.slice(0, Math.max(6, KANA.indexOf(v) + 2)); }
+    // 記号1つ：空欄（a・b…）に解答群から入れるものはプルダウン、それ以外は選択ボタン（操作説明の ①選択ボタン・③プルダウン）
+    if (/^[ア-ン]$/.test(v)) { f.type = blank ? 'select' : 'radio'; f.opts = KANA.slice(0, Math.max(6, KANA.indexOf(v) + 2)); }
     else if (/^[ア-ン](\s*[，,、]\s*[ア-ン])+$/.test(v)) { const ks = v.split(/\s*[，,、]\s*/); f.type = 'multi'; f.opts = KANA.slice(0, Math.max(6, Math.max(...ks.map(k => KANA.indexOf(k))) + 2)); }
     else {
       const alts = model.split(/\n|・|又は/).map(s => s.trim()).filter(Boolean);
@@ -1215,6 +1234,64 @@ const CBTB = (() => {
     }
     return f;
   }
+  /* 解答欄1つの HTML（本番形式の画面と、通常の演習の両方で使う）。name は data-k に入れる識別子 */
+  function fieldHTML(f, name, v, ed = true) {
+    const sl = f.head || f.blank ? `<div class="sl">${escH(f.head)}${f.blank ? ' 空欄 ' + escH(f.blank) : ''}</div>` : '';
+    const k = escH(name);
+    if (f.type === 'radio') return `<div class="cb-sub">${sl}<div class="cb-rad">${[...f.opts].map(o => `<button type="button" data-k="${k}" data-v="${o}" aria-pressed="${v === o}">${o}</button>`).join('')}</div></div>`;
+    if (f.type === 'select') return `<div class="cb-sub">${sl}<select data-k="${k}"><option value="">選択してください</option>${[...f.opts].map(o => `<option ${v === o ? 'selected' : ''}>${o}</option>`).join('')}</select></div>`;
+    if (f.type === 'multi') return `<div class="cb-sub">${sl}<div class="multi">${[...f.opts].map(o => `<label><input type="checkbox" data-k="${k}" value="${o}" ${(v || []).includes(o) ? 'checked' : ''}>${o}</label>`).join('')}</div><div class="cb-note">あてはまるものをすべて選ぶ</div></div>`;
+    if (f.type === 'line') return `<div class="cb-sub">${sl}<input type="text" data-k="${k}" maxlength="${f.max}" value="${escH(v || '')}" autocomplete="off"></div>`;
+    return `<div class="cb-sub cb-ml">${sl}${ed ? '<div class="ed"><button data-op="cut">✂カット</button><button data-op="copy">📋コピー</button><button data-op="paste">📄ペースト</button></div>' : ''}
+      <textarea data-k="${k}" data-max="${f.max}" spellcheck="false">${escH(v || '')}</textarea><div class="cnt">${(v || '').length} / ${f.max} 文字</div></div>`;
+  }
+  /* 選択ボタン：押したものを選ぶ。選んでいるものをもう一度押すと未解答に戻る。新しい値を返す */
+  function pressRadio(b) {
+    const on = b.getAttribute('aria-pressed') !== 'true';
+    b.parentElement.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', 'false'));
+    b.setAttribute('aria-pressed', String(on));
+    return on ? b.dataset.v : '';
+  }
+  /* 複数行の欄：上限を超えた分を消して、字数の表示を直す */
+  function clipText(t) {
+    const max = +t.dataset.max;
+    if (t.value.length > max) t.value = t.value.slice(0, max);
+    const c = t.parentElement.querySelector('.cnt'); c.textContent = `${t.value.length} / ${max} 文字`; c.classList.toggle('full', t.value.length >= max);
+  }
+  const composeAns = (fs, a) => fs.map(f => { const v = a[f.key]; const s = Array.isArray(v) ? v.join('，') : (v || '').trim(); return s ? (f.key ? f.key + ' ' : '') + s : ''; }).filter(Boolean).join('\n');
+
+  /* ---- 通常の演習の解答欄（記号の設問があるときだけ。ないときは null を返し、元の1つの入力欄のまま） ---- */
+  function drillHTML(x, it, r) {
+    const fs = fieldsOf(it);
+    if (!fs.some(f => f.type === 'radio' || f.type === 'select' || f.type === 'multi')) return null;
+    const a = (r.fv || {})[it.label];
+    const old = !a && (r.ans[it.label] || '').trim() ? `<div class="cb-note">以前の入力：${escH(r.ans[it.label])}</div>` : '';
+    return `<div class="dr-fx" data-lab="${escH(it.label)}">${fs.map(f => fieldHTML(f, it.label + '|' + f.key, (a || {})[f.key], false)).join('')}${old}</div>`;
+  }
+  function drillWire(P, x, r, save) {
+    const set = (t, v) => {
+      const [lab, key] = t.dataset.k.split('|');
+      const it = x.items.find(i => i.label === lab);
+      const a = ((r.fv = r.fv || {})[lab] = r.fv[lab] || {});
+      a[key] = v;
+      r.ans[lab] = composeAns(fieldsOf(it), a);      // 書き出し・「解答中」の表示は、これまでどおり文字の解答で
+      save();
+    };
+    P.querySelectorAll('.dr-fx').forEach(box => {
+      box.addEventListener('click', e => { const b = e.target.closest('button[data-v]'); if (b) set(b, pressRadio(b)); });
+      box.addEventListener('change', e => {
+        const t = e.target; if (!t.dataset.k) return;
+        if (t.type === 'checkbox') set(t, [...box.querySelectorAll(`input[type=checkbox][data-k="${CSS.escape(t.dataset.k)}"]:checked`)].map(c => c.value));
+        else if (t.tagName === 'SELECT') set(t, t.value);
+      });
+      box.addEventListener('input', e => {
+        const t = e.target; if (!t.dataset.k || t.type === 'checkbox' || t.tagName === 'SELECT') return;
+        if (t.tagName === 'TEXTAREA') clipText(t);
+        set(t, t.value);
+      });
+    });
+  }
+
   const norm = s => String(s || '').replace(/[\s，,、]/g, '').replace(/[Ａ-Ｚａ-ｚ０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
   const filled = v => Array.isArray(v) ? v.length > 0 : !!String(v || '').trim();
 
@@ -1225,7 +1302,7 @@ const CBTB = (() => {
     P.innerHTML = `<div class="card" style="max-width:980px;margin:20px auto;background:#fff;border:1px solid var(--line);border-radius:4px;padding:20px 22px">
       <h2 style="margin:0 0 6px;font-size:18px">本番形式（CBT）で解く</h2>
       <p style="margin:0 0 12px;color:var(--sub);font-size:13px">令和8年度からの CBT 方式の試験画面に近い画面で、時間を計って解きます。
-        始めに「問題選択」で解く問題を選び、左の問題文を読みながら右の解答欄にキーボードで入力します。
+        始めに「問題選択」で解く問題を選び、左の問題文を読みながら右の解答欄に答えます。記号はクリックで選び、字句や文章はキーボードで入力します。
         問題文へのマーカー、問題（別画面）、メモ、電卓、後で見直す、解答状況、白黒反転、拡大縮小が使えます。途中で閉じても続きから再開できます。</p>
       ${saved ? `<div style="background:#fff8e1;border:1px solid #f0d58a;padding:10px 12px;border-radius:3px;margin-bottom:12px">
         途中の試験があります：${escH(saved.title)}（残り ${CBT.fmtTime(saved.remain)}）
@@ -1235,7 +1312,7 @@ const CBTB = (() => {
         <b>試験時間</b><div>${[[150, '150分（本番の時間）'], [120, '120分（短めに練習）']].map(([t, n], i) => `<label style="margin-right:14px"><input type="radio" name="cbT" value="${t}" ${i ? '' : 'checked'}> ${n}</label>`).join('')}</div>
       </div>
       <p class="hint" style="font-size:12px;color:var(--sub)">※本番と同じく、問1（必須）と、問2〜問11から選んだ4問の、計5問を解きます。解く問題は、試験画面の「問題選択」で選びます。<br>
-        ※解答欄の形（選択・プルダウン・1行・複数行）と字数の上限は、解答例から推定した目安です。</p>
+        ※解答欄の形（選択ボタン・プルダウン・1行・複数行）と字数の上限は、解答例から推定した目安です。</p>
       <p style="margin:14px 0 0"><button id="cbGo" style="background:var(--mark);color:#fff;border:0;border-radius:3px;padding:8px 22px;font-size:15px">試験を始める</button>
       <span style="color:var(--sub);font-size:12px;margin-left:10px">全画面で開きます。終わると解答例と並べて自己採点し、「自己採点の集計」にも反映します。</span></p>
     </div>
@@ -1398,15 +1475,7 @@ const CBTB = (() => {
         p.items.map(it => {
           const lab = it.label;
           return `<div class="cb-q" data-lab="${escH(lab)}"><div class="lab"><input type="checkbox" class="cb-chk" data-flag="${escH(lab)}" ${(S.flag[p.id] || {})[lab] ? 'checked' : ''}>${escH(lab)}</div>
-            ${fieldsOf(it).map(f => {
-              const v = val(p.id, lab, f.key), name = `${p.id}|${lab}|${f.key}`;
-              const sl = f.head || f.blank ? `<div class="sl">${escH(f.head)}${f.blank ? ' 空欄 ' + escH(f.blank) : ''}</div>` : '';
-              if (f.type === 'select') return `<div class="cb-sub">${sl}<select data-k="${escH(name)}"><option value="">選択してください</option>${[...f.opts].map(o => `<option ${v === o ? 'selected' : ''}>${o}</option>`).join('')}</select></div>`;
-              if (f.type === 'multi') return `<div class="cb-sub">${sl}<div class="multi">${[...f.opts].map(o => `<label><input type="checkbox" data-k="${escH(name)}" value="${o}" ${(v || []).includes(o) ? 'checked' : ''}>${o}</label>`).join('')}</div><div class="cb-note">あてはまるものをすべて選ぶ</div></div>`;
-              if (f.type === 'line') return `<div class="cb-sub">${sl}<input type="text" data-k="${escH(name)}" maxlength="${f.max}" value="${escH(v || '')}" autocomplete="off"></div>`;
-              return `<div class="cb-sub cb-ml">${sl}<div class="ed"><button data-op="cut">✂カット</button><button data-op="copy">📋コピー</button><button data-op="paste">📄ペースト</button></div>
-                <textarea data-k="${escH(name)}" data-max="${f.max}" spellcheck="false">${escH(v || '')}</textarea><div class="cnt">${(v || '').length} / ${f.max} 文字</div></div>`;
-            }).join('')}</div>`;
+            ${fieldsOf(it).map(f => fieldHTML(f, `${p.id}|${lab}|${f.key}`, val(p.id, lab, f.key))).join('')}</div>`;
         }).join('');
     };
     const onField = e => {
@@ -1414,13 +1483,15 @@ const CBTB = (() => {
       const [pid, lab, key] = k.split('|');
       focusKey = pid + '|' + lab;
       if (t.type === 'checkbox') { setVal(pid, lab, key, [...$('cbA').querySelectorAll(`input[type=checkbox][data-k="${CSS.escape(k)}"]:checked`)].map(c => c.value)); return; }
-      if (t.tagName === 'TEXTAREA') {
-        const max = +t.dataset.max;
-        if (t.value.length > max) t.value = t.value.slice(0, max);       // 上限を超えた分は消える
-        const c = t.parentElement.querySelector('.cnt'); c.textContent = `${t.value.length} / ${max} 文字`; c.classList.toggle('full', t.value.length >= max);
-      }
+      if (t.tagName === 'TEXTAREA') clipText(t);       // 上限を超えた分は消える
       setVal(pid, lab, key, t.value);
     };
+    $('cbA').addEventListener('click', e => {         // 選択ボタン
+      const b = e.target.closest('button[data-v]'); if (!b) return;
+      const [pid, lab, key] = b.dataset.k.split('|');
+      focusKey = pid + '|' + lab;
+      setVal(pid, lab, key, pressRadio(b));
+    });
     $('cbA').addEventListener('input', onField);
     $('cbA').addEventListener('change', e => {
       if (e.target.dataset.flag) { const p = x(); const f = (S.flag[p.id] = S.flag[p.id] || {}); if (e.target.checked) f[e.target.dataset.flag] = true; else delete f[e.target.dataset.flag]; syncFlag(); saveS(); return; }
@@ -1489,7 +1560,7 @@ const CBTB = (() => {
     $('cbCalc').onclick = () => CBT.toggleCalc();
     $('cbRef').onclick = () => CBT.notes([
       ['注意事項', `<p>科目B試験：記述式。本番は11問中5問（問1は必須）・150分。</p>${CBT.COMMON_NOTE}`],
-      ['解答欄の説明', `<ul><li><b>選択ボタン／プルダウン</b>：選択肢から1つ選びます。</li><li><b>チェックボックス</b>：あてはまるものをすべて選びます。</li>
+      ['解答欄の説明', `<ul><li><b>選択ボタン／プルダウン</b>：選択肢から1つ選びます。選択ボタンは、もう一度押すと未解答に戻ります。</li><li><b>チェックボックス</b>：あてはまるものをすべて選びます。</li>
         <li><b>1行の解答欄</b>：キーボードで入力します。字数・文字の種類に制限があることがあります。</li>
         <li><b>複数行の解答欄</b>：入力した文字数と上限が右下に出ます。上限を超えた分は消えます。カット・コピー・ペーストは欄の上のボタンで行います。</li>
         <li>設問の左のチェックボックスで「後で見直す」を付けられます。下の「後で見直す」はその問題のすべての設問に付けます。</li></ul>`],
@@ -1561,7 +1632,7 @@ const CBTB = (() => {
   }
   function answerText(p, it) {
     const a = (S.ans[p.id] || {})[it.label] || {};
-    return fieldsOf(it).map(f => { const v = a[f.key]; const s = Array.isArray(v) ? v.join('，') : (v || '').trim(); return s ? (f.key ? f.key + ' ' : '') + s : ''; }).filter(Boolean).join('\n');
+    return composeAns(fieldsOf(it), a);
   }
   function block(p) {
     const r = rec(p.id);
@@ -1569,7 +1640,7 @@ const CBTB = (() => {
       ${p.items.map(it => {
         const a = (S.ans[p.id] || {})[it.label] || {};
         const fs = fieldsOf(it);
-        const auto = fs.filter(f => f.type === 'select' || f.type === 'multi' || (f.blank && f.type === 'line' && f.model.length <= 6)).map(f => {
+        const auto = fs.filter(f => f.type === 'select' || f.type === 'radio' || f.type === 'multi' || (f.blank && f.type === 'line' && f.model.length <= 6)).map(f => {
           const v = a[f.key], mine = Array.isArray(v) ? v.slice().sort().join('') : norm(v);
           const model = f.type === 'multi' ? f.model.split(/\s*[，,、]\s*/).sort().join('') : norm(f.model);
           return {f, ok: mine === model};
@@ -1586,7 +1657,7 @@ const CBTB = (() => {
       }).join('')}</div>`;
   }
 
-  return {setup};
+  return {setup, drillHTML, drillWire};
 })();
 
 // 「本番形式」タブを足す

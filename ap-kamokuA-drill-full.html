@@ -347,6 +347,23 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 #cbt .cb-qtb .qt-f img{width:auto}
 #cbt .cb-qtb .qt-pre{font-family:inherit;white-space:pre-wrap;margin:.4em 0}
 .cb-qt .bx{display:inline-block;min-width:3.2em;border:1.5px solid currentColor;text-align:center;line-height:1.3;margin:0 .25em;text-indent:0}
+
+/* 選択ボタン（操作説明の ①選択ボタン）：押すと色が変わる。本番形式の画面と通常の演習で共通 */
+.cb-rad{display:flex;flex-wrap:wrap;gap:6px}
+.cb-rad button{min-width:44px;padding:5px 12px;border:1px solid #9aa3ad;background:#fff;border-radius:3px;font-family:inherit;font-size:15px;cursor:pointer;color:#1f2933}
+.cb-rad button:hover{background:#eef3f8}
+.cb-rad button[aria-pressed=true]{background:#1d4f91;border-color:#1d4f91;color:#fff;font-weight:600}
+/* 通常の演習の解答欄（記号の設問があるとき） */
+.dr-fx .cb-sub{margin:4px 0 10px}
+.dr-fx .cb-sub .sl{font-size:12px;color:var(--sub,#5c6673);margin-bottom:3px}
+.dr-fx select{min-width:160px;padding:4px 6px;border:1px solid var(--line,#ccd);border-radius:3px;font-family:inherit;font-size:14px;background:#fff}
+.dr-fx .multi{display:flex;flex-wrap:wrap;gap:4px 14px}
+.dr-fx .multi label{display:flex;align-items:center;gap:4px;font-size:14px}
+.dr-fx input[type=text]{width:100%;padding:6px 8px;border:1px solid var(--line,#ccd);border-radius:3px;font-family:inherit;font-size:14px}
+.dr-fx textarea{width:100%;min-height:70px;padding:8px;border:1px solid var(--line,#ccd);border-radius:3px;font-family:inherit;font-size:14px;line-height:1.7;resize:vertical}
+.dr-fx .cnt{text-align:right;font-size:11px;color:var(--sub,#5c6673)}
+.dr-fx .cnt.full{color:#c62828}
+.dr-fx .cb-note{font-size:12px;color:var(--sub,#5c6673)}
 </style>
 <!--/CBT-CSS-->
 <!--SUM-CSS-->
