@@ -96,6 +96,7 @@ table.grid tbody th{font-size:13px;font-weight:600;padding:7px 12px;text-align:l
 .grade button[data-g=d][aria-pressed=true]{background:var(--half);border-color:var(--half);color:#fff}
 .grade button[data-g=x][aria-pressed=true]{background:var(--ng);border-color:var(--ng);color:#fff}
 .q .lab .ptv{font-size:13px;color:var(--mark);font-variant-numeric:tabular-nums}
+.ppt{font-size:20px;font-weight:700;color:var(--mark);font-variant-numeric:tabular-nums}
 .wide{width:100%;background:var(--ink);color:#fff;border:none;border-radius:3px;padding:10px;font-weight:600}
 .ghost{width:100%;background:none;border:1px solid var(--line);border-radius:3px;padding:8px;color:var(--sub)}
 details{border-top:1px solid var(--line);padding-top:10px;margin-top:10px}
@@ -363,6 +364,15 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .cb-fg td.gb button[data-fg=x][aria-pressed=true]{background:#9E2F1E;border-color:#9E2F1E;color:#fff}
 .cb-fg .cb-fgs{margin-top:6px;font-size:12px;color:#3d4652}
 #cbt .cb-pt{font-size:13px;color:#1f4e9c}
+.cb-fg th .cb-note{font-weight:400;font-size:11px;margin-top:2px}
+.cb-fg .cb-pin{margin-left:6px;font-size:12px;color:#3d4652}
+.cb-fg .cb-pin input{width:3.4em;padding:2px 4px;border:1px solid #c9ccd1;border-radius:3px;font:inherit;font-size:13px;text-align:right;font-variant-numeric:tabular-nums}
+.cb-fg .cb-fgs .cb-note{margin-top:3px}
+.cb-full .cb-total{font-size:16px;margin:10px 0 4px}
+.cb-full .cb-total .ok{color:#17604A;font-size:13px}
+.cb-full .cb-total .ng{color:#9E2F1E;font-size:13px}
+.cb-full .cb-pp{font-size:14px;color:#1f4e9c;font-variant-numeric:tabular-nums}
+.cb-fg .cb-note{color:#5c6673}
 </style>
 <!--/CBT-CSS-->
 <!--SUM-CSS-->
@@ -481,16 +491,19 @@ const P = document.getElementById('page');
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const find = (st, prob) => PM.find(x => x.st === st && x.prob === prob);
 
+// 点数は大問20点満点。設問の満点 it.max は、大問20点を解答欄の数で割った配点の合計（work/cbt/cbt_b.js）
 function gradeScore(r, items){
-  let got = 0, n = 0;
+  let got = 0, n = 0, max = 0;
   items.forEach(it => {
+    const m = it.max != null ? it.max : 20 / items.length;
     const p = r.pt && r.pt[it.label];
-    if (p != null){ n++; got += p; return; }          // 欄ごとに採点した設問（work/cbt/cbt_b.js）
+    if (p != null){ n++; got += p * m; max += m; return; }          // 欄ごとに採点した設問
     const g = r.grade[it.label];
-    if (g){ n++; got += g === 'o' ? 1 : g === 'd' ? 0.5 : 0; }
+    if (g){ n++; max += m; got += (g === 'o' ? 1 : g === 'd' ? 0.5 : 0) * m; }
   });
-  return {n, got, rate: n ? got / n : null};
+  return {n, got, max, rate: max ? got / max : null};
 }
+const pt1 = v => String(Math.round(v * 10) / 10);
 
 function hdr(){
   let done = 0, rate = [];
@@ -500,9 +513,9 @@ function hdr(){
     const s = gradeScore(r, x.items);
     if (s.n === x.items.length && s.n > 0){ done++; rate.push(s.rate); }
   });
-  const avg = rate.length ? Math.round(rate.reduce((a,b)=>a+b,0)/rate.length*100) : null;
+  const avg = rate.length ? rate.reduce((a,b)=>a+b,0)/rate.length*20 : null;
   document.getElementById('hdr').innerHTML =
-    `採点済み <b>${done}</b>/${PM.length}` + (avg !== null ? ` 　平均 <b>${avg}%</b>` : '');
+    `採点済み <b>${done}</b>/${PM.length}` + (avg !== null ? ` 　平均 <b>${pt1(avg)}</b>／20点` : '');
 }
 
 document.querySelector('.tabs').onclick = e => {
@@ -546,7 +559,7 @@ function renderPick(){
             if (g.n){
               const pct = Math.round(g.rate*100);
               cls = pct >= 70 ? 'done' : pct >= 50 ? 'part' : 'low';
-              body = `<b>${pct}%</b>${g.n}/${x.items.length}問採点`;
+              body = g.n === x.items.length ? `<b>${pt1(g.got)}点</b>20点満点` : `<b>${pct}%</b>${g.n}/${x.items.length}問採点`;
             } else if (Object.keys(r.ans).length){ body = '解答中'; }
           }
           return `<td><button class="cell ${cls}" data-st="${s.st}" data-p="${n}">${body}</button></td>`;
@@ -687,11 +700,15 @@ function renderWork(){
         </div>
       </div>
       <div class="card">
+        <h3>この大問の点（20点満点。配点は解答欄の数で割った目安）</h3>
+        <div class="ppt" id="ppt">${CBTB.probScore(x, r).label}</div>
+      </div>
+      <div class="card">
         <h3>解答欄　※本番と同じく、記号はクリックで選び、字句や文章はキーボードで入力します</h3>
         ${x.items.map((it,i) => `
           <div class="q" data-i="${i}">
             <div class="lab"><strong>${it.label}</strong><span class="sp"></span>
-              <b class="ptv">${CBTB.ptLabel(r, it.label)}</b>
+              <b class="ptv">${CBTB.ptLabel(r, it)}</b>
               <div class="grade" title="設問全体で採点（欄ごとの採点は解答例を見ると出ます）">
                 ${['o','d','x'].map(g => `<button data-g="${g}" aria-pressed="${r.grade[it.label]===g}">${g==='o'?'○':g==='d'?'△':'✕'}</button>`).join('')}
               </div>
@@ -730,7 +747,8 @@ function renderWork(){
   const refreshQ = i => {
     const it = x.items[i], q = P.querySelector(`.q[data-i="${i}"]`);
     q.querySelectorAll('.grade button').forEach(b => b.setAttribute('aria-pressed', String(r.grade[it.label] === b.dataset.g)));
-    q.querySelector('.ptv').textContent = CBTB.ptLabel(r, it.label);
+    q.querySelector('.ptv').textContent = CBTB.ptLabel(r, it);
+    document.getElementById('ppt').textContent = CBTB.probScore(x, r).label;
     q.querySelector('.fgw').innerHTML = CBTB.gradeTable(it, r, (r.fv || {})[it.label]);
     hdr();
   };
@@ -744,6 +762,11 @@ function renderWork(){
     if (fb) CBTB.setFieldGrade(r, it, fb.dataset.key, fb.dataset.fg);
     else if (e.target.closest('.cb-auto')) CBTB.autoGrade(r, it, (r.fv || {})[it.label]);
     else return;
+    save(); refreshQ(+w.dataset.fgw);
+  }));
+  P.querySelectorAll('.fgw').forEach(w => w.addEventListener('change', e => {     // 欄の点数を直接入れた
+    const inp = e.target.closest('[data-pin]'); if (!inp) return;
+    CBTB.setFieldPoints(r, x.items[+w.dataset.fgw], inp.dataset.pin, inp.value);
     save(); refreshQ(+w.dataset.fgw);
   }));
   P.querySelectorAll('[data-rev]').forEach(b => b.onclick = () => {
@@ -792,29 +815,30 @@ function renderScore(){
     xs.forEach(x => {
       const r = store.rec[x.id]; if (!r) return;
       const g = gradeScore(r, x.items);
-      if (g.n){ got += g.got; cnt += g.n; solved++; sec += r.sec; }
+      if (g.n){ got += g.got; cnt += g.max; solved++; sec += r.sec; }
     });
     return {n, f, solved, tot:xs.length, rate: cnt ? got/cnt : null, avgmin: solved ? sec/solved/60 : null};
   });
   P.innerHTML = `
   <div class="box">
     <h2>分野別</h2>
-    <p class="lead">○を1点、△を0.5点として数えた自己採点です（欄ごとに採点した設問は、欄の平均点）。本番の合格は60点。</p>
-    <table class="plain"><thead><tr><th>分野</th><th class="num">解いた回</th><th class="num">自己採点</th><th class="num">平均所要</th></tr></thead><tbody>
+    <p class="lead">大問20点満点に直した自己採点の平均です（本番は5問で100点、合格は60点＝1問あたり12点）。
+      配点は大問20点を解答欄の数で均等に割った目安で、欄ごとに ○＝満点、△＝半分、✕＝0点、または入れた点数で数えます。</p>
+    <table class="plain"><thead><tr><th>分野</th><th class="num">解いた回</th><th class="num">自己採点（20点満点）</th><th class="num">平均所要</th></tr></thead><tbody>
     ${byField.map(b => `<tr><td>問${b.n}　${b.f}</td><td class="num">${b.solved}/${b.tot}</td>
-      <td class="num ${b.rate !== null && b.rate < 0.6 ? 'bad' : ''}">${b.rate === null ? '—' : Math.round(b.rate*100)+'%'}</td>
+      <td class="num ${b.rate !== null && b.rate < 0.6 ? 'bad' : ''}">${b.rate === null ? '—' : pt1(b.rate*20)+'点（'+Math.round(b.rate*100)+'%）'}</td>
       <td class="num">${b.avgmin === null ? '—' : Math.round(b.avgmin)+'分'}</td></tr>`).join('')}
     </tbody></table>
     <p class="hint" style="margin-top:12px">所要時間が30分を大きく超える分野は、本番で他の問題を削ることになります。正答率と時間の両方で選択分野を決めてください。</p>
   </div>
   <div class="box">
     <h2>設問ごとの結果</h2>
-    <table class="plain"><thead><tr><th>回</th><th>問</th><th>設問</th><th>自己採点</th></tr></thead><tbody>
+    <table class="plain"><thead><tr><th>回</th><th>問</th><th>設問</th><th>自己採点</th><th class="num">点</th></tr></thead><tbody>
     ${PM.flatMap(x => { const r = store.rec[x.id]; if (!r) return [];
       return x.items.filter(it => r.grade[it.label]).map(it =>
         `<tr><td>${x.stLabel}</td><td>問${x.prob}</td><td>${it.label}</td>
-         <td class="${r.grade[it.label]==='x'?'bad':''}">${r.grade[it.label]==='o'?'○':r.grade[it.label]==='d'?'△':'✕'}${CBTB.ptLabel(r, it.label) ? '（' + CBTB.ptLabel(r, it.label) + '）' : ''}</td></tr>`);
-    }).join('') || '<tr><td colspan="4" class="hint">まだ採点がありません。</td></tr>'}
+         <td class="${r.grade[it.label]==='x'?'bad':''}">${r.grade[it.label]==='o'?'○':r.grade[it.label]==='d'?'△':'✕'}</td><td class="num">${CBTB.ptLabel(r, it)}</td></tr>`);
+    }).join('') || '<tr><td colspan="5" class="hint">まだ採点がありません。</td></tr>'}
     </tbody></table>
   </div>`;
 }
@@ -829,7 +853,7 @@ function renderExport(){
     chunks.push(`【${x.stLabel} 問${x.prob} ${x.field}】` +
       wrote.map(it => {
         const g = r.grade[it.label];
-        return `\n${it.label}（自己採点${g === 'o' ? '○' : g === 'd' ? '△' : g === 'x' ? '✕' : '未'}${CBTB.ptLabel(r, it.label) ? ' ' + CBTB.ptLabel(r, it.label) : ''}）\n` +
+        return `\n${it.label}（自己採点${g === 'o' ? '○' : g === 'd' ? '△' : g === 'x' ? '✕' : '未'}${CBTB.ptLabel(r, it) ? ' ' + CBTB.ptLabel(r, it) : ''}）\n` +
                `私の解答: ${r.ans[it.label].trim().replace(/\n/g,' ')}\n` +
                `解答例: ${it.ans.replace(/\n/g,' / ')}`;
       }).join('\n'));
@@ -1261,8 +1285,21 @@ const CBTB = (() => {
   PM.forEach(p => p.items.forEach(it => {
     const t = (FT[p.id] || {})[it.label];
     if (t) it.fs = t.map(e => ({key: (e.k || '') + (e.b || ''), head: e.k || '', blank: e.b || '', model: e.m || '', type: e.t, opts: e.o, max: e.max,
-      free: !!e.free, unordered: !!e.u, group: e.u || 0, pick: e.c || 0}));
+      free: !!e.free, unordered: !!e.u, group: e.u || 0, pick: e.c || 0, pts: e.p, ptsSet: e.p != null}));
   }));
+  /* 配点：IPA の公表は大問ごと（各20点）だけ。欄ごとの配点は表の p で指定でき、指定のない欄は残りを均等に割る。
+   * it.max はその設問の満点 */
+  const FULL = 20;
+  PM.forEach(p => {
+    const all = p.items.flatMap(it => it.fs || []), fixed = all.filter(f => f.ptsSet);
+    const loose = p.items.filter(it => !it.fs).length;               // 表のない設問（旧方式）は1欄ぶんとして数える
+    const n = all.length - fixed.length + loose, left = FULL - fixed.reduce((t, f) => t + f.pts, 0);
+    const unit = n ? Math.max(0, left) / n : 0;
+    all.forEach(f => { if (!f.ptsSet) f.pts = unit; });
+    p.items.forEach(it => it.max = it.fs ? it.fs.reduce((t, f) => t + f.pts, 0) : unit);
+  });
+  const fpts = (it, f) => f.pts != null ? f.pts : it.max / fieldsOf(it).length;
+  const pf = n => String(Math.round(n * 10) / 10);
   function fieldsOf(it) {
     if (it.fs) return it.fs;
     const text = String(it.ans || '').replace(/\r/g, '');
@@ -1369,9 +1406,13 @@ const CBTB = (() => {
   const norm = s => String(s || '').replace(/[\s，,、]/g, '').replace(/[Ａ-Ｚａ-ｚ０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
   const filled = v => Array.isArray(v) ? v.length > 0 : !!String(v || '').trim();
 
-  /* ---- 細かい採点：解答欄ごとに ○（1点）△（0.5点）✕（0点）。設問の点は欄の平均 ----
-   * 記録：r.fg[設問][欄] = 'o'|'d'|'x'、r.pt[設問] = 0〜1（全部の欄に付けたとき）、r.grade[設問] は ○△✕ の要約（集計・書き出し用） */
+  /* ---- 細かい採点：解答欄ごとに、配点のうち何割取れたか（○ 満点・△ 半分・✕ 0点、または点数を直接入れる） ----
+   * 記録：r.fg[設問][欄] = 'o'|'d'|'x' か 0〜1 の数、r.pt[設問] = 設問の満点に対する割合 0〜1（全部の欄に付けたとき）、
+   *       r.grade[設問] は ○△✕ の要約（集計・書き出し用） */
   const GV = {o: 1, d: .5, x: 0};
+  const gv = g => typeof g === 'number' ? g : GV[g];
+  const r3 = v => Math.round(v * 1000) / 1000;
+  const asG = v => v >= 1 ? 'o' : v <= 0 ? 'x' : v === .5 ? 'd' : r3(v);
   const isSym = f => f.type === 'radio' || f.type === 'select' || f.type === 'multi';
   /* 記号の欄を解答例と照らす（順不同の組は入れ替えを許す）。答えていない欄は ✕ */
   function judge(fs, a) {
@@ -1382,6 +1423,13 @@ const CBTB = (() => {
       if (f.group) {
         const g = fs.filter(o => o.group === f.group), rest = g.map(mod);
         g.forEach(o => { const v = val(o), i = rest.indexOf(v); if (v && i >= 0) { rest.splice(i, 1); out[o.key] = 'o'; } else out[o.key] = 'x'; });
+      } else if (f.type === 'multi') {
+        // チェックボックスは選択肢ごとに数える。「全て選べ」：選ぶべきものを選んだ・選ぶべきでないものを選ばなかった選択肢の割合。
+        // 「二つ選べ」など数の決まったもの：選んだ正解の数 ÷ 選ぶ数。何も選んでいなければ 0点
+        const sel = new Set(Array.isArray(a[f.key]) ? a[f.key] : []), ok = new Set(f.model.split(/\s*[，,、]\s*/));
+        const os = [...(f.opts || '')];
+        out[f.key] = !sel.size ? 'x' : f.pick ? asG(Math.min(f.pick, [...sel].filter(o => ok.has(o)).length) / f.pick)
+          : asG(os.filter(o => sel.has(o) === ok.has(o)).length / os.length);
       } else out[f.key] = val(f) && val(f) === mod(f) ? 'o' : 'x';
     });
     return out;
@@ -1389,14 +1437,22 @@ const CBTB = (() => {
   function sumUp(r, it) {
     const fs = fieldsOf(it), lab = it.label, fg = (r.fg || {})[lab] || {};
     r.pt = r.pt || {};
-    if (fs.length && fs.every(f => fg[f.key])) {
-      const p = fs.reduce((s, f) => s + GV[fg[f.key]], 0) / fs.length;
-      r.pt[lab] = Math.round(p * 1000) / 1000;
+    if (fs.length && fs.every(f => fg[f.key] != null)) {
+      const p = it.max ? fs.reduce((s, f) => s + gv(fg[f.key]) * fpts(it, f), 0) / it.max : 0;
+      r.pt[lab] = r3(p);
       r.grade[lab] = p >= 1 ? 'o' : p <= 0 ? 'x' : 'd';
     } else {
       delete r.pt[lab];
       if (Object.keys(fg).length) delete r.grade[lab];      // 途中まで付けた設問は「未採点」
     }
+  }
+  /* 欄に点数を直接入れる（空にすると外す） */
+  function setFieldPoints(r, it, key, v) {
+    const fg = ((r.fg = r.fg || {})[it.label] = r.fg[it.label] || {}), f = fieldsOf(it).find(o => o.key === key);
+    const n = parseFloat(String(v).replace(/[０-９．]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0)));
+    if (!f || isNaN(n)) delete fg[key];
+    else fg[key] = asG(Math.min(1, Math.max(0, n / (fpts(it, f) || 1))));
+    sumUp(r, it);
   }
   /* 欄に ○△✕ を付ける（同じものをもう一度押すと外す） */
   function setFieldGrade(r, it, key, g) {
@@ -1416,20 +1472,30 @@ const CBTB = (() => {
     Object.assign(fg, j); sumUp(r, it);
     return Object.keys(j).length;
   }
-  const ptLabel = (r, lab) => { const p = (r.pt || {})[lab]; return p == null ? '' : Math.round(p * 100) + '%'; };
+  /* 設問の点「4.5／6.7点」（欄ごとの採点がなければ、設問全体の ○△✕ から） */
+  const ptOf = (r, it) => { const p = (r.pt || {})[it.label], g = r.grade[it.label]; return p != null ? p * it.max : g ? GV[g] * it.max : null; };
+  const ptLabel = (r, it) => { const v = ptOf(r, it); return v == null ? '' : `${pf(v)}／${pf(it.max)}点`; };
+  /* 大問の点：採点した設問の合計と、その満点 */
+  function probScore(p, r) {
+    let got = 0, max = 0, n = 0;
+    p.items.forEach(it => { const v = r ? ptOf(r, it) : null; if (v != null) { n++; got += v; max += it.max; } });
+    return {got, max, n, all: n === p.items.length, label: !n ? '未採点' : n === p.items.length ? `${pf(got)}／${FULL}点` : `${pf(got)}点（採点した ${n}/${p.items.length} 設問の満点 ${pf(max)}点）`};
+  }
   /* 欄ごとの採点表（解答例を見たあとに出す）。a はその設問の欄ごとの解答 */
   function gradeTable(it, r, a) {
     const fs = fieldsOf(it), fg = ((r.fg || {})[it.label]) || {};
-    const done = fs.filter(f => fg[f.key]).length;
+    const done = fs.filter(f => fg[f.key] != null).length;
     return `<div class="cb-fg" data-lab="${escH(it.label)}">
       <div class="cb-fgh"><b>欄ごとに採点</b>${fs.some(isSym) ? '<button type="button" class="cb-auto">記号の欄を自動採点</button>' : ''}</div>
       <table>${fs.map(f => {
-        const v = (a || {})[f.key], mine = Array.isArray(v) ? v.join('，') : String(v || '').trim();
-        return `<tr><th>${escH(fieldName(f) || '解答')}</th>
+        const v = (a || {})[f.key], mine = Array.isArray(v) ? v.join('，') : String(v || '').trim(), fp = fpts(it, f), g = fg[f.key];
+        return `<tr><th>${escH(fieldName(f) || '解答')}<div class="cb-note">配点 ${pf(fp)}点</div></th>
           <td class="md"><div class="ex">${f.model ? escH(f.model).replace(/\n/g, '<br>') : '<span class="cb-note">（解答例の図を参照）</span>'}</div>${a ? `<div class="mine">${mine ? 'あなた：' + escH(mine) : '<span class="cb-note">未解答</span>'}</div>` : ''}</td>
-          <td class="gb">${['o', 'd', 'x'].map(g => `<button type="button" data-fg="${g}" data-key="${escH(f.key)}" aria-pressed="${fg[f.key] === g}">${g === 'o' ? '○' : g === 'd' ? '△' : '✕'}</button>`).join('')}</td></tr>`;
+          <td class="gb">${['o', 'd', 'x'].map(k => `<button type="button" data-fg="${k}" data-key="${escH(f.key)}" aria-pressed="${g === k}">${k === 'o' ? '○' : k === 'd' ? '△' : '✕'}</button>`).join('')}
+            <label class="cb-pin"><input type="text" inputmode="decimal" data-pin="${escH(f.key)}" value="${g != null ? pf(gv(g) * fp) : ''}" aria-label="${escH(fieldName(f) || '解答')} の点数">点</label></td></tr>`;
       }).join('')}</table>
-      <div class="cb-fgs">${done}/${fs.length} 欄を採点${ptLabel(r, it.label) ? `　→　設問の点 <b>${ptLabel(r, it.label)}</b>` : done ? '（全部の欄に付けると設問の点が出ます）' : ''}　<span class="cb-note">○1点・△0.5点・✕0点の平均</span></div></div>`;
+      <div class="cb-fgs">${done}/${fs.length} 欄を採点${(r.pt || {})[it.label] != null ? `　→　設問の点 <b>${ptLabel(r, it)}</b>` : done ? '（全部の欄に付けると設問の点が出ます）' : ''}
+        <div class="cb-note">○は配点の満点、△は半分、✕は0点。点数を直接入れることもできます。チェックボックスの欄は、自動採点で選択肢ごとの正誤から部分点を付けます。配点は大問20点を欄の数で割った目安です（IPAの公表は大問ごとの配点だけ）。</div></div></div>`;
   }
 
   /* ---- 開始前の画面 ---- */
@@ -1449,7 +1515,7 @@ const CBTB = (() => {
         <b>試験時間</b><div>${[[150, '150分（本番の時間）'], [120, '120分（短めに練習）']].map(([t, n], i) => `<label style="margin-right:14px"><input type="radio" name="cbT" value="${t}" ${i ? '' : 'checked'}> ${n}</label>`).join('')}</div>
       </div>
       <p class="hint" style="font-size:12px;color:var(--sub)">※本番と同じく、問1（必須）と、問2〜問11から選んだ4問の、計5問を解きます。解く問題は、試験画面の「問題選択」で選びます。<br>
-        ※解答欄の形（選択ボタン・プルダウン・1行・複数行）と字数の上限は、解答例から推定した目安です。</p>
+        ※解答欄の形（選択ボタン・チェックボックス・プルダウン・1行・複数行）、選択肢の数、字数の上限は、問題冊子の設問に合わせています。</p>
       <p style="margin:14px 0 0"><button id="cbGo" style="background:var(--mark);color:#fff;border:0;border-radius:3px;padding:8px 22px;font-size:15px">試験を始める</button>
       <span style="color:var(--sub);font-size:12px;margin-left:10px">全画面で開きます。終わると解答例と並べて自己採点し、「自己採点の集計」にも反映します。</span></p>
     </div>
@@ -1665,7 +1731,7 @@ const CBTB = (() => {
       const ps = S.ids.map(id => PM.find(p => p.id === id));
       const html = `<div class="pick">
         <p style="margin:0 0 6px">解答する問題を選び、<b>「選択」ボタン</b>を押してください。何度でも選び直せます。</p>
-        <p class="cb-note" style="margin:0 0 8px">本番：問1（必須）を含めて5問を選択。このツールでは収録している4問から選びます。採点されるのは選択した問題だけです。</p>
+        <p class="cb-note" style="margin:0 0 8px">本番：問1（必須）を含めて5問を選択。採点されるのは選択した問題だけです。</p>
         <div id="cbSelCnt" style="font-weight:600;margin-bottom:6px"></div>
         ${Array.from({length: 11}, (_, i) => i + 1).map(n => { const p = ps.find(q => q.prob === n);
           if (!p) return `<label class="na"><input type="checkbox" disabled> 問${n}　（このツールには未収録）</label>`;
@@ -1756,18 +1822,34 @@ const CBTB = (() => {
     const R = CBT.root, full = h('div', {class: 'cb-full'});
     full.innerHTML = `<div class="in"><h2>解答の確認　${escH(S.title)}</h2>
       <p class="cb-note">${timeUp ? '試験時間が終了したため、自動的に終了しました。' : '試験を終了しました。'}かかった時間 ${CBT.fmtTime(used)}（制限 ${CBT.fmtTime(S.total)}）。
-        選択肢・空欄で答えが決まるものは自動で判定しています（○×）。記述は解答例と見比べて、設問ごとに ○△✕ を付けてください（「自己採点の集計」に反映されます）。</p>
+        記号の欄は「記号の欄を自動採点」で判定できます（チェックボックスは選択肢ごとの部分点）。記述は解答例と見比べて、欄ごとに ○△✕ か点数を付けてください（「自己採点の集計」に反映されます）。
+        配点は大問20点・5問で100点満点です。</p>
+      <p class="cb-total" id="cbTotal"></p>
       ${sel.length ? '' : '<div class="cb-card warn">問題が選択されていなかったため、採点の対象はありません（本番では0点になります）。下は参考として表示しています。</div>'}
       ${(sel.length ? sel : S.ids).map(pid => block(PM.find(q => q.id === pid))).join('')}
       <p style="margin-top:20px"><button class="cb-btn" id="cbBack">演習に戻る</button></p></div>`;
     R.appendChild(full);
+    const total = () => {
+      const ps = sel.map(pid => probScore(PM.find(q => q.id === pid), rec(pid)));
+      const got = ps.reduce((t, x) => t + x.got, 0), all = ps.length && ps.every(x => x.all);
+      full.querySelector('#cbTotal').innerHTML = sel.length ? `合計 <b>${pf(got)}</b>／100点` +
+        (all ? (got >= 60 ? '　<span class="ok">合格ライン（60点）に届いています</span>' : '　<span class="ng">合格ライン（60点）まであと ' + pf(60 - got) + '点</span>') : '　<span class="cb-note">（まだ採点していない設問があります）</span>') : '';
+      sel.forEach(pid => { const el = full.querySelector(`[data-pp="${CSS.escape(pid)}"]`); if (el) el.textContent = probScore(PM.find(q => q.id === pid), rec(pid)).label; });
+    };
+    total();
     const redraw = (pid, lab) => {     // その設問の採点の表示だけ描き直す
       const p = PM.find(q => q.id === pid), it = p.items.find(i => i.label === lab), r = rec(pid);
       const box = full.querySelector(`[data-item="${CSS.escape(pid + '|' + lab)}"]`);
       box.querySelector('.cb-fg').outerHTML = gradeTable(it, r, (S.ans[pid] || {})[lab] || {});
       box.querySelectorAll('[data-g]').forEach(b => b.setAttribute('aria-pressed', String(r.grade[lab] === b.dataset.g)));
-      box.querySelector('.cb-pt').textContent = ptLabel(r, lab);
+      box.querySelector('.cb-pt').textContent = ptLabel(r, it);
+      total();
     };
+    full.addEventListener('change', e => {
+      const inp = e.target.closest('[data-pin]'); if (!inp) return;
+      const [pid, lab] = inp.closest('[data-item]').dataset.item.split('|'), r = rec(pid), it = PM.find(q => q.id === pid).items.find(i => i.label === lab);
+      setFieldPoints(r, it, inp.dataset.pin, inp.value); save(); redraw(pid, lab);
+    });
     full.addEventListener('click', e => {
       const g = e.target.closest('[data-g]');
       if (g) { const r = rec(g.dataset.pid), it = PM.find(q => q.id === g.dataset.pid).items.find(i => i.label === g.dataset.lab);
@@ -1789,20 +1871,21 @@ const CBTB = (() => {
   }
   function block(p) {
     const r = rec(p.id);
-    return `<div class="cb-card"><h3 style="margin:0 0 8px">問${p.prob}　${escH(p.field)}　<span class="cb-note">（この問題に使った時間 ${CBT.fmtTime(S.secBy[p.id] || 0)}）</span></h3>
+    return `<div class="cb-card"><h3 style="margin:0 0 8px;display:flex;gap:8px;align-items:baseline">問${p.prob}　${escH(p.field)}　<span class="cb-note">（この問題に使った時間 ${CBT.fmtTime(S.secBy[p.id] || 0)}）</span>
+        <span style="flex:1"></span><span class="cb-pp" data-pp="${escH(p.id)}">${probScore(p, r).label}</span></h3>
       ${p.items.map(it => {
         const a = (S.ans[p.id] || {})[it.label] || {};
         const fs = fieldsOf(it);
-        const auto = fs.filter(f => f.type === 'select' || f.type === 'radio' || f.type === 'multi' || (f.blank && f.type === 'line' && f.model.length <= 6)).map(f => {
-          const v = a[f.key], mine = Array.isArray(v) ? v.slice().sort().join('') : norm(v);
-          const model = f.type === 'multi' ? f.model.split(/\s*[，,、]\s*/).sort().join('') : norm(f.model);
-          return {f, ok: mine === model};
+        const jd = judge(fs, a);
+        const auto = fs.filter(f => isSym(f) || (f.blank && f.type === 'line' && f.model.length <= 6)).map(f => {
+          if (isSym(f)) return {f, m: jd[f.key] === 'o' ? '○' : jd[f.key] === 'x' ? '×' : '△'};
+          return {f, m: norm(a[f.key]) && norm(a[f.key]) === norm(f.model) ? '○' : '×'};
         });
-        const mark = auto.length ? auto.map(x => `${escH(x.f.key)} ${x.ok ? '○' : '×'}`).join('　') : '';
+        const mark = auto.length ? auto.map(x => `${escH(x.f.key)} ${x.m}`).join('　') : '';
         const ex = expOf(p.id, it.label);
         return `<div style="border-top:1px solid #e1e4e8;padding:10px 0" data-item="${escH(p.id + '|' + it.label)}">
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><b>${escH(it.label)}</b><span class="cb-note">${mark}</span><span style="flex:1"></span>
-            <b class="cb-pt">${ptLabel(r, it.label)}</b>
+            <b class="cb-pt">${ptLabel(r, it)}</b>
             <span class="cb-gr">設問全体で ${['o', 'd', 'x'].map(g => `<button data-g="${g}" data-pid="${p.id}" data-lab="${escH(it.label)}" aria-pressed="${r.grade[it.label] === g}">${g === 'o' ? '○' : g === 'd' ? '△' : '✕'}</button>`).join('')}</span></div>
           <div class="cb-cmp"><div><div class="h">あなたの解答</div><pre>${escH(answerText(p, it)) || '（未解答）'}</pre></div>
             <div><div class="h">解答例（IPA公表）</div><pre>${escH(it.ans)}</pre></div></div>
@@ -1812,7 +1895,7 @@ const CBTB = (() => {
       }).join('')}</div>`;
   }
 
-  return {setup, drillHTML, drillWire, fieldsOf, gradeTable, setFieldGrade, setWholeGrade, autoGrade, ptLabel};
+  return {setup, drillHTML, drillWire, fieldsOf, gradeTable, setFieldGrade, setFieldPoints, setWholeGrade, autoGrade, ptLabel, probScore, FULL};
 })();
 
 // 「本番形式」タブを足す
@@ -1824,6 +1907,7 @@ const CBTB = (() => {
   tabs.insertBefore(b, tabs.children[1]);
   const _render = render;
   render = function () { if (view === 'cbt') { setTabs(); hdr(); return CBTB.setup(); } return _render(); };
+  render();      // 配点（設問の満点 it.max）が決まったので、最初の画面を描き直す
 })();
 </script>
 <!--/CBT-JS-->
